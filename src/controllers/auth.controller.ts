@@ -2,7 +2,8 @@ import { Request, Response } from "express"
 import bcrypt from 'bcryptjs';
 import { getRepository } from "typeorm";
 import { User } from "../entities/user.entity";
-import { sign } from 'jsonwebtoken';
+import { sign, verify } from 'jsonwebtoken';
+import { Verify } from "crypto";
 
 export const Register = async (req: Request, res: Response) => {
   const { first_name, last_name, email, password, password_confirm } = req.body;
@@ -41,3 +42,26 @@ export const Login = async (req: Request, res: Response) => {
 
   return res.status(200).json({ msg: 'success', data: user });
 }
+
+export const AuthenticateUser = async (req: Request, res: Response) => {
+  // Add cookie parse to parse cookies
+  try {
+    const cookie = req.cookies['access_token'];
+    // Get the user
+    const payload: any = verify(cookie, process.env.ACCESS_SECRET || '');
+  
+    if (!payload) return res.status(401).send({ msg: 'Unathenticated' });
+  
+    const user = await getRepository(User).findOne(payload.id);
+  
+    if (!user) {
+      return res.status(401).json({ msg: 'Unauthenticated' });
+    }
+  
+    res.status(200).json({ msg: 'success', data: { id: user.id, email: user.email }});
+    
+  } catch (error) {
+    console.log(error)
+    return res.status(401).json({ msg: 'Unauthenticated' });
+  }
+};

@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 import express from 'express';
-import "reflect-metadata";
+import cookieParser from 'cookie-parser';
 import { createConnection } from 'typeorm';
 import { routes } from './routes';
 import cors from 'cors';
@@ -12,6 +12,7 @@ createConnection().then(() => {
   const app = express();
 
   app.use(express.json());
+  app.use(cookieParser());
   app.use(cors({
     origin: ['http://localhost:3000'],
     credentials: true
