@@ -3,14 +3,13 @@ import bcrypt from 'bcryptjs';
 import { getRepository } from "typeorm";
 import { User } from "../entities/user.entity";
 import { sign, verify } from 'jsonwebtoken';
-import { Verify } from "crypto";
 
 export const Register = async (req: Request, res: Response) => {
   const { first_name, last_name, email, password, password_confirm } = req.body;
 
   if (password !== password_confirm) return res.status(400).json({ msg: 'Passwords do not match' });
 
-  const user = await getRepository(User).save({
+  const { password: any, ...user } = await getRepository(User).save({
     first_name, 
     last_name, 
     email, 
@@ -49,7 +48,7 @@ export const AuthenticateUser = async (req: Request, res: Response) => {
     const cookie = req.cookies['access_token'];
     // Get the user
     const payload: any = verify(cookie, process.env.ACCESS_SECRET || '');
-  
+    // Check valid payload
     if (!payload) return res.status(401).send({ msg: 'Unathenticated' });
   
     const user = await getRepository(User).findOne(payload.id);
@@ -65,3 +64,37 @@ export const AuthenticateUser = async (req: Request, res: Response) => {
     return res.status(401).json({ msg: 'Unauthenticated' });
   }
 };
+
+export const Refresh = (req: Request, res: Response) => {
+  try {
+    console.log(`Refreshing token`);
+    const cookie = req.cookies['refresh_token'];
+  
+    const payload: any = verify(cookie, process.env.REFRESH_SECRET || '');
+  
+    // Check valid payload
+    if (!payload) return res.status(401).send({ msg: 'Unathenticated' });
+
+    // Create new access token
+    const accessToken = sign({
+      // Take id from refresh token payload
+      id: payload.id
+    }, process.env.ACCESS_SECRET || '', { expiresIn: '30s' });
+  
+    // Set access token as a cookie
+    res.cookie('access_token', accessToken, { httpOnly: true, maxAge: 24*60*60*1000 });
+
+    res.json({ msg: 'success', data: [] });
+
+  } catch (error) {
+    console.log(error)
+    return res.status(401).json({ msg: 'Unauthenticated' });
+  }
+} 
+
+export const Logout = (req: Request, res: Response) => {
+  res.cookie('access_token', 0, { maxAge: 0 });
+  res.cookie('refresh_token', 0, { maxAge: 0 });
+
+  res.json({ msg: 'success' });
+}
